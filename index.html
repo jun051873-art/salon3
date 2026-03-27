@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>雲端課程管家</title>
+    <title>雲端課程管家-新加坡同步版</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
@@ -23,13 +23,14 @@
         
         <div class="flex justify-between items-center mb-4">
             <div class="text-[10px] font-bold" :class="connected ? 'text-green-500' : 'text-red-400'">
-                {{ connected ? '● 雲端已同步' : '○ 正在連接雲端...' }}
+                {{ connected ? '● 雲端已同步 (SG)' : '○ 正在連接雲端基地...' }}
             </div>
-            <div class="text-xl cursor-pointer" @click="showSettings = true">⚙️</div>
+            <div class="text-xl cursor-pointer p-1" @click="showSettings = true">⚙️</div>
         </div>
 
         <div class="bg-white p-5 rounded-3xl shadow-sm mb-6 border-b-4 border-blue-500">
             <input v-model="currentProject.name" @change="sync" class="text-2xl font-bold w-full outline-none mb-4" placeholder="點擊輸入專案名稱">
+            
             <div class="grid grid-cols-2 gap-4 text-sm mb-4">
                 <div>
                     <span class="text-gray-400 block font-bold">總金額</span>
@@ -40,17 +41,19 @@
                     <input type="number" v-model.number="currentProject.totalCount" @change="sync" class="text-xl font-bold w-full outline-none text-blue-600">
                 </div>
             </div>
+
             <div class="bg-blue-50 p-3 rounded-2xl flex justify-between items-center">
-                <span class="text-sm">剩餘：<span class="text-orange-500 font-bold text-lg">{{ remaining }}</span> 堂</span>
-                <button @click="confirmArchive" v-if="remaining === 0" class="bg-black text-white px-4 py-2 rounded-xl text-xs font-bold">結案存檔</button>
+                <span class="text-sm font-medium">剩餘：<span class="text-orange-500 font-bold text-lg">{{ remaining }}</span> 堂</span>
+                <button @click="confirmArchive" v-if="remaining === 0" class="bg-black text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md">結案存檔</button>
             </div>
-            <textarea v-model="currentProject.note" @change="sync" class="w-full mt-3 text-xs bg-transparent outline-none text-gray-500 border-t pt-2" placeholder="專案備註..."></textarea>
+            
+            <textarea v-model="currentProject.note" @change="sync" class="w-full mt-3 text-xs bg-transparent outline-none text-gray-500 border-t pt-2" placeholder="在此輸入備註 (如：授課老師、地點)..."></textarea>
         </div>
 
-        <div class="flex justify-between items-center mb-3 px-2 font-bold">
-            <button @click="changeMonth(-1)" class="text-blue-600">＜</button>
-            <span>{{ currentYear }} / {{ currentMonth + 1 }}</span>
-            <button @click="changeMonth(1)" class="text-blue-600">＞</button>
+        <div class="flex justify-between items-center mb-3 px-2 font-bold text-gray-700">
+            <button @click="changeMonth(-1)" class="text-blue-600 p-2 text-xl">＜</button>
+            <span class="text-lg">{{ currentYear }} / {{ currentMonth + 1 }}</span>
+            <button @click="changeMonth(1)" class="text-blue-600 p-2 text-xl">＞</button>
         </div>
 
         <div class="bg-white p-3 rounded-3xl shadow-sm mb-6">
@@ -66,54 +69,69 @@
         </div>
 
         <h2 class="font-bold text-gray-400 mb-3 px-2 text-sm">歷史檔案箱</h2>
-        <div class="space-y-3">
-            <div v-for="(h, i) in history" :key="i" @click="viewDetail = h" class="bg-white p-4 rounded-2xl shadow-sm flex justify-between items-center active:scale-95 transition-transform">
-                <div><div class="font-bold text-gray-800">{{ h.name }}</div><div class="text-[10px] text-gray-400">{{ h.archiveDate }}</div></div>
-                <div class="text-right"><div class="text-green-600 font-bold">${{ h.price }}</div><div class="text-[10px] text-gray-400">{{ h.totalCount }} 堂</div></div>
+        <div class="space-y-3 pb-10">
+            <div v-for="(h, i) in history" :key="i" @click="viewDetail = h" class="bg-white p-4 rounded-2xl shadow-sm flex justify-between items-center active:scale-95 transition-transform cursor-pointer">
+                <div>
+                    <div class="font-bold text-gray-800">{{ h.name || '未命名專案' }}</div>
+                    <div class="text-[10px] text-gray-400">結案：{{ h.archiveDate }}</div>
+                </div>
+                <div class="text-right">
+                    <div class="text-green-600 font-bold">${{ h.price }}</div>
+                    <div class="text-[10px] text-gray-400">{{ h.totalCount }} 堂</div>
+                </div>
             </div>
+            <div v-if="history.length === 0" class="text-center py-10 text-gray-300 text-sm">尚無結案紀錄</div>
         </div>
 
         <div v-if="showSettings" class="ios-modal" @click.self="showSettings = false">
             <div class="bg-white w-full max-w-xs rounded-3xl p-6 shadow-2xl">
-                <h3 class="font-bold mb-4 border-b pb-2">自定義狀態名稱</h3>
+                <h3 class="font-bold mb-4 border-b pb-2 text-lg text-gray-800">自定義標籤名稱</h3>
                 <div class="space-y-4">
                     <div v-for="(label, key) in customLabels" :key="key">
-                        <label class="text-[10px] font-bold uppercase" :class="key === 'plan' ? 'text-blue-400' : key === 'done' ? 'text-green-400' : 'text-red-400'">{{key}}</label>
-                        <input v-model="customLabels[key]" @change="sync" class="w-full border-b p-1 outline-none text-sm">
+                        <label class="text-[10px] font-bold uppercase mb-1 block" :class="key === 'plan' ? 'text-blue-400' : key === 'done' ? 'text-green-400' : 'text-red-400'">{{key === 'plan' ? '狀態一：預定' : key === 'done' ? '狀態二：已完課' : '狀態三：請假'}}</label>
+                        <input v-model="customLabels[key]" @change="sync" class="w-full border-b p-1 outline-none text-sm font-medium focus:border-blue-500">
                     </div>
                 </div>
-                <button @click="showSettings = false" class="w-full mt-6 bg-black text-white py-3 rounded-2xl font-bold text-sm">完成設定</button>
+                <button @click="showSettings = false" class="w-full mt-6 bg-black text-white py-3 rounded-2xl font-bold text-sm">完成並關閉</button>
             </div>
         </div>
 
         <div v-if="viewDetail" class="ios-modal" @click.self="viewDetail = null">
-            <div class="bg-white w-full rounded-3xl p-6 max-h-[80vh] overflow-y-auto">
-                <h3 class="text-xl font-bold mb-2">{{ viewDetail.name }}</h3>
-                <div class="text-xs text-gray-500 mb-4 border-b pb-2">金額：${{viewDetail.price}} | 堂數：{{viewDetail.totalCount}}</div>
-                <div class="space-y-1 mb-4">
-                    <div v-for="(rec, key) in sortedDetailRecords" :key="key" class="flex justify-between text-[10px] py-1 border-b border-gray-50">
-                        <span>{{ key }}</span>
-                        <span class="font-bold" :class="rec.status === 'done' ? 'text-green-500' : 'text-red-500'">{{ getStatusText(rec.status) }} (#{{rec.order}})</span>
+            <div class="bg-white w-full rounded-3xl p-6 max-h-[85vh] overflow-y-auto">
+                <h3 class="text-xl font-bold mb-1 text-gray-800">{{ viewDetail.name || '未命名' }}</h3>
+                <div class="text-xs text-gray-500 mb-4 border-b pb-3 flex justify-between">
+                    <span>金額：${{viewDetail.price}}</span>
+                    <span>總堂數：{{viewDetail.totalCount}} 堂</span>
+                </div>
+                <div class="space-y-1 mb-5">
+                    <div class="font-bold text-sm mb-2 text-gray-700">上課流水帳：</div>
+                    <div v-for="(rec, key) in sortedDetailRecords" :key="key" class="flex justify-between text-[11px] py-1.5 border-b border-gray-50">
+                        <span class="text-gray-400">{{ key }}</span>
+                        <span class="font-bold" :class="rec.status === 'done' ? 'text-green-500' : 'text-red-500'">{{ getStatusText(rec.status) }} (#{{rec.order || '?'}})</span>
                     </div>
                 </div>
-                <div class="bg-gray-50 p-3 rounded-xl text-[10px] whitespace-pre-wrap"><strong>備註：</strong><br>{{ viewDetail.note || '無' }}</div>
-                <button @click="viewDetail = null" class="w-full mt-4 bg-blue-500 text-white py-3 rounded-2xl font-bold text-sm">關閉</button>
+                <div class="bg-gray-50 p-4 rounded-2xl text-[11px] text-gray-600 whitespace-pre-wrap leading-relaxed">
+                    <strong class="text-gray-800 block mb-1 font-bold">專案備註：</strong>
+                    {{ viewDetail.note || '無詳細備註' }}
+                </div>
+                <button @click="viewDetail = null" class="w-full mt-6 bg-blue-500 text-white py-3 rounded-2xl font-bold text-sm shadow-lg">關閉內容</button>
             </div>
         </div>
     </div>
 
     <script>
-        // 核心通訊配置
+        // 你的新加坡伺服器配置
         const firebaseConfig = {
             apiKey: "AIzaSyD92qxuJJmiwTh3kGGXevr3uH8e",
             authDomain: "mychildlessons.firebaseapp.com",
-            databaseURL: "https://mychildlessons-default-rtdb.firebaseio.com",
+            databaseURL: "https://mychildlessons-default-rtdb.asia-southeast1.firebasedatabase.app/",
             projectId: "mychildlessons",
             storageBucket: "mychildlessons.firebasestorage.app",
             messagingSenderId: "780264591074",
             appId: "1:780264591074:web:99e999c4c1cadc"
         };
 
+        // 初始化
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
@@ -136,23 +154,30 @@
                 daysInMonth() { return new Date(this.currentYear, this.currentMonth + 1, 0).getDate(); },
                 startDay() { return new Date(this.currentYear, this.currentMonth, 1).getDay(); },
                 remaining() {
-                    const used = Object.values(this.currentProject.records || {}).filter(r => r.status === 'plan' || r.status === 'done').length;
+                    if (!this.currentProject.records) return this.currentProject.totalCount;
+                    const used = Object.values(this.currentProject.records).filter(r => r.status === 'plan' || r.status === 'done').length;
                     return this.currentProject.totalCount - used;
                 },
                 sortedDetailRecords() {
-                    if (!this.viewDetail) return {};
+                    if (!this.viewDetail || !this.viewDetail.records) return {};
                     return Object.keys(this.viewDetail.records).sort().reduce((obj, key) => { obj[key] = this.viewDetail.records[key]; return obj; }, {});
                 }
             },
             methods: {
-                sync() { db.ref('app_data').set({ project: this.currentProject, history: this.history, labels: this.customLabels }); },
+                sync() { 
+                    db.ref('app_data').set({ 
+                        project: this.currentProject, 
+                        history: this.history, 
+                        labels: this.customLabels 
+                    }); 
+                },
                 load() {
                     db.ref('app_data').on('value', (s) => {
                         const d = s.val();
                         if (d) {
-                            this.currentProject = d.project || this.currentProject;
+                            this.currentProject = d.project || { name: '', price: 0, totalCount: 8, note: '', records: {} };
                             this.history = d.history || [];
-                            this.customLabels = d.labels || this.customLabels;
+                            this.customLabels = d.labels || { plan: '預定', done: '已上課', absent: '請假' };
                         }
                         this.connected = true;
                     });
@@ -164,24 +189,32 @@
                     const key = this.getKey(date);
                     if (!this.currentProject.records) this.currentProject.records = {};
                     const cur = this.currentProject.records[key];
+                    
                     if (!cur) {
-                        if (this.remaining <= 0) return alert("額度已滿！");
+                        if (this.remaining <= 0) return alert("這包課的額度用完了！請將某天設為請假或結案。");
                         this.currentProject.records[key] = { status: 'plan' };
                     } else if (cur.status === 'plan') cur.status = 'done';
                     else if (cur.status === 'done') cur.status = 'absent';
                     else delete this.currentProject.records[key];
-                    this.reorder(); this.sync();
+                    
+                    this.reorder(); 
+                    this.sync();
                 },
                 reorder() {
-                    const keys = Object.keys(this.currentProject.records || {}).filter(k => this.currentProject.records[k].status !== 'absent').sort();
+                    if (!this.currentProject.records) return;
+                    const keys = Object.keys(this.currentProject.records).filter(k => this.currentProject.records[k].status !== 'absent').sort();
                     keys.forEach((k, i) => this.currentProject.records[k].order = i + 1);
                 },
                 getCellClass(date) { const r = this.getRecord(date); return r ? `status-${r.status}` : ''; },
                 changeMonth(s) { this.currentMonth += s; if (this.currentMonth > 11) { this.currentMonth = 0; this.currentYear++; } else if (this.currentMonth < 0) { this.currentMonth = 11; this.currentYear--; } },
                 confirmArchive() {
-                    if (confirm("確定要結案納入歷史紀錄嗎？")) {
+                    if (confirm(`確定要結案「${this.currentProject.name || '此專案'}」並存入歷史紀錄嗎？`)) {
                         const now = new Date();
-                        this.history.unshift({ ...JSON.parse(JSON.stringify(this.currentProject)), archiveDate: `${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()}` });
+                        const archive = { 
+                            ...JSON.parse(JSON.stringify(this.currentProject)), 
+                            archiveDate: `${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()}` 
+                        };
+                        this.history.unshift(archive);
                         this.currentProject = { name: '', price: 0, totalCount: 8, note: '', records: {} };
                         this.sync();
                     }
