@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>雲端課程管家-新加坡同步版</title>
+    <title>雲端課程管家-台灣同步版</title>
+    <!-- 更換為 Firestore SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -23,7 +24,8 @@
         
         <div class="flex justify-between items-center mb-4">
             <div class="text-[10px] font-bold" :class="connected ? 'text-green-500' : 'text-red-400'">
-                {{ connected ? '● 雲端已同步 (SG)' : '○ 正在連接雲端基地...' }}
+                <!-- 改為台灣顯示 -->
+                {{ connected ? '● 雲端已同步 (TW)' : '○ 正在連接台灣雲端基地...' }}
             </div>
             <div class="text-xl cursor-pointer p-1" @click="showSettings = true">⚙️</div>
         </div>
@@ -83,6 +85,7 @@
             <div v-if="history.length === 0" class="text-center py-10 text-gray-300 text-sm">尚無結案紀錄</div>
         </div>
 
+        <!-- 設定與詳情彈窗代碼保持不變... -->
         <div v-if="showSettings" class="ios-modal" @click.self="showSettings = false">
             <div class="bg-white w-full max-w-xs rounded-3xl p-6 shadow-2xl">
                 <h3 class="font-bold mb-4 border-b pb-2 text-lg text-gray-800">自定義標籤名稱</h3>
@@ -120,20 +123,18 @@
     </div>
 
     <script>
-        // 你的新加坡伺服器配置
         const firebaseConfig = {
             apiKey: "AIzaSyD92qxuJJmiwTh3kGGXevr3uH8e",
             authDomain: "mychildlessons.firebaseapp.com",
-            databaseURL: "https://mychildlessons-default-rtdb.asia-southeast1.firebasedatabase.app/",
             projectId: "mychildlessons",
             storageBucket: "mychildlessons.firebasestorage.app",
             messagingSenderId: "780264591074",
             appId: "1:780264591074:web:99e999c4c1cadc"
         };
 
-        // 初始化
+        // 初始化 Firestore
         firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
+        const db = firebase.firestore();
 
         const { createApp } = Vue
         createApp({
@@ -164,22 +165,26 @@
                 }
             },
             methods: {
+                // Firestore 同步寫入
                 sync() { 
-                    db.ref('app_data').set({ 
+                    db.collection('app_configs').doc('main').set({ 
                         project: this.currentProject, 
                         history: this.history, 
                         labels: this.customLabels 
                     }); 
                 },
+                // Firestore 讀取載入
                 load() {
-                    db.ref('app_data').on('value', (s) => {
-                        const d = s.val();
-                        if (d) {
+                    db.collection('app_configs').doc('main').onSnapshot((doc) => {
+                        if (doc.exists) {
+                            const d = doc.data();
                             this.currentProject = d.project || { name: '', price: 0, totalCount: 8, note: '', records: {} };
                             this.history = d.history || [];
                             this.customLabels = d.labels || { plan: '預定', done: '已上課', absent: '請假' };
                         }
                         this.connected = true;
+                    }, (err) => {
+                        console.error("連線失敗", err);
                     });
                 },
                 getKey(date) { return `${this.currentYear}-${String(this.currentMonth+1).padStart(2,'0')}-${String(date).padStart(2,'0')}`; },
